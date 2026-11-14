@@ -72,7 +72,7 @@ class WorkflowTests(unittest.TestCase):
             core.DATA = Path(folder)
             try:
                 save_template('Oficio', fixture(), core.DATA)
-                app = AppTest.from_file(str(Path(__file__).with_name('app.py'))).run()
+                app = AppTest.from_file(str(Path(__file__).with_name('app.py')), default_timeout=30).run()
                 self.assertFalse(app.exception)
                 self.assertTrue(next(b for b in app.button if b.label == 'Generar Word').disabled)
                 for area in app.text_area:

@@ -119,3 +119,12 @@ Si continúa mostrando el error anterior, revisa los registros de instalación y
 **Manage app → Reboot app** tras completar la reconstrucción.
 
 Referencia: https://docs.streamlit.io/knowledge-base/dependencies/libgl
+
+### OCR en servidores con recursos limitados
+
+Se selecciona explícitamente `PP-OCRv5_mobile_det` en lugar del detector de servidor.
+Se conserva el reconocedor latino para español, se limita la detección a 960 píxeles
+por lado máximo, se usan dos hilos de CPU y lotes de reconocimiento de una línea.
+Esto reduce el consumo de recursos; el texto muy pequeño puede perder precisión.
+Se omite la comprobación previa de conectividad a proveedores de modelos, pero se
+mantiene la descarga normal cuando los modelos no están en caché.

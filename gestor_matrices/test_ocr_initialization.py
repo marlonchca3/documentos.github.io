@@ -29,8 +29,12 @@ class InitializationTests(unittest.TestCase):
                     create_engine()
                 self.assertIs(create_engine(), constructor.return_value)
         self.assertEqual(len(attempts), 2)
-        self.assertEqual(constructor.call_args.kwargs['lang'], 'es')
+        self.assertEqual(constructor.call_args.kwargs['text_recognition_model_name'], 'latin_PP-OCRv5_mobile_rec')
         self.assertFalse(constructor.call_args.kwargs['enable_mkldnn'])
+        self.assertEqual(constructor.call_args.kwargs['text_detection_model_name'], 'PP-OCRv5_mobile_det')
+        self.assertEqual(constructor.call_args.kwargs['cpu_threads'], 2)
+        self.assertEqual(constructor.call_args.kwargs['text_recognition_batch_size'], 1)
+        self.assertEqual(constructor.call_args.kwargs['text_det_limit_type'], 'max')
 
 
 if __name__ == '__main__':
