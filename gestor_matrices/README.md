@@ -108,8 +108,9 @@ revisa nombres, números, fechas y acentos antes de generar el documento.
 
 ## Dependencias de Streamlit Community Cloud
 
-El archivo `packages.txt` en la raíz del repositorio instala `libgl1`, que aporta
-`libGL.so.1` para OpenCV, utilizado por PaddleOCR. Debe mantenerse en la raíz aunque
+El archivo `packages.txt` en la raíz del repositorio instala `libgl1` y
+`libglib2.0-0`, que aportan `libGL.so.1` y `libgthread-2.0.so.0` respectivamente
+para OpenCV, utilizado por PaddleOCR. Debe mantenerse en la raíz aunque
 el punto de entrada sea `gestor_matrices/app.py`. Esta biblioteca es una dependencia
 del sistema y no se instala mediante `requirements.txt`.
 
