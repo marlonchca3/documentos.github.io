@@ -38,3 +38,11 @@ test_tipc/web/node_modules/
 
 .venv/
 .worktrees/
+
+# Datos privados de la aplicación de matrices
+/gestor_matrices/data/
+/gestor_matrices/**/*.docx
+/gestor_matrices/**/*.png
+/gestor_matrices/**/*.jpg
+/gestor_matrices/**/*.jpeg
+/gestor_matrices/**/*.webp

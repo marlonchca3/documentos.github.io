@@ -1,10 +1,14 @@
 """Adaptador para PaddleOCR 3.7; fotos procesadas en memoria."""
 from io import BytesIO
+import os
 import numpy as np
 from PIL import Image, ImageOps
 
 
 def create_engine():
+    # Solo usamos inferencia: evita registrar repositorios de entrenamiento.
+    # Debe configurarse antes de importar PaddleX, incluso en los reintentos.
+    os.environ['PADDLE_PDX_EAGER_INIT'] = 'False'
     from paddleocr import PaddleOCR
     return PaddleOCR(lang='es', ocr_version='PP-OCRv5', device='cpu', enable_mkldnn=False,
                      use_doc_orientation_classify=False, use_doc_unwarping=False,

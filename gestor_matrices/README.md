@@ -70,6 +70,13 @@ device='cpu', ...)`, `predict()` y `rec_texts`. El modelo se carga bajo demanda 
 reutiliza; las inferencias simultáneas se serializan. Las fotos respetan la orientación
 EXIF; el enderezado automático está desactivado. Límite: 20 MB y 25 megapíxeles por foto.
 La primera extracción requiere conexión para descargar modelos a la caché de PaddleX.
+Antes de importar PaddleOCR se establece `PADDLE_PDX_EAGER_INIT=False`: la aplicación
+solo usa inferencia y no necesita inicializar anticipadamente los repositorios de
+entrenamiento de PaddleX. Esto evita su registro repetido al reintentar una importación.
+Tras desplegar esta corrección en Streamlit Cloud, usa **Reboot app** una vez si el
+proceso ya mostraba `PDX has already been initialized`; recargar el navegador no
+elimina el estado de Python en el servidor. Los errores originales se registran con
+su traceback para distinguir fallos de dependencias, descarga e inicialización.
 Si falla la descarga o inicialización, se muestra el error sin impedir completar campos
 manualmente. No se requiere una API de pago ni un servicio remoto para inferencia.
 

@@ -1,6 +1,7 @@
 from hashlib import sha256
 from importlib.metadata import version
 from pathlib import Path
+import logging
 import streamlit as st
 from core import DATA, fields, generate, save_template, template_name
 from ocr import create_engine, extract_text
@@ -61,8 +62,15 @@ if st.button('Extraer texto', disabled=not photos):
             if texts:
                 st.session_state['ocr_text'] = '\n\n'.join(texts)
         except Exception as exc:
+            logging.getLogger(__name__).exception('No se pudo iniciar PaddleOCR')
             st.error(f'No se pudo iniciar PaddleOCR: {exc}')
-            st.info('Comprueba la conexión para descargar modelos y las dependencias de requirements.txt.')
+            if 'PDX has already been initialized' in str(exc):
+                st.info('El proceso conserva una inicialización anterior de PaddleX. '
+                        'Reinicia la aplicación desde Streamlit Cloud (Reboot app) '
+                        'para aplicar la configuración de OCR. Recargar la página no reinicia el servidor.')
+            else:
+                st.info('Consulta el registro del servidor para ver la causa original. '
+                        'Comprueba las dependencias y la conexión si el registro indica un fallo de descarga.')
 st.text_area('Texto extraído (editable)', key='ocr_text', height=250)
 
 st.subheader('2. Completar y revisar la matriz')
