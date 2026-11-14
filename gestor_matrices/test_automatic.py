@@ -30,6 +30,16 @@ class AutomaticTests(unittest.TestCase):
         self.assertNotIn('fecha', values)
         self.assertNotIn('destinatario', values)
 
+    def test_references_with_reference_prefix_are_extracted_verbatim(self):
+        order = 'Referencia: Orden de trabajo de mantenimiento N.° 087-2026-DIVMAAER'
+        oficio = 'Ref. Oficio N° 012-2026'
+        values, conflicts = suggest_fields(
+            f'{order}\n{oficio}', ['referencia_orden', 'referencia_oficio', 'numero'])
+        self.assertEqual(values['referencia_orden'], order)
+        self.assertEqual(values['referencia_oficio'], oficio)
+        self.assertNotIn('numero', values)
+        self.assertFalse(conflicts)
+
     def test_table_headings_are_not_document_numbers(self):
         for text in ('NUMERO\nHORA\n10:30', 'Numero: HORA', 'Número\nMODELO\nMI-17'):
             values, _ = suggest_fields(text, ['numero'])

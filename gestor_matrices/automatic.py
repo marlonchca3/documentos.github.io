@@ -27,6 +27,14 @@ TABLE_HEADERS = {'hora', 'aeronave', 'modelo', 'n° de serie', 'nº de serie',
                  'personal', 'firma', 'observaciones'}
 TASK_LABELS = {'trabajo a realizar', 'actividad a realizar', 'descripcion del trabajo',
                'descripcion de trabajo', 'tarea a realizar'}
+REFERENCE_PATTERNS = {
+    'referencia_orden': re.compile(
+        r'^(?:(?:referencia|ref\.?)\s*:?\s*)?(?:de\s+)?orden\s+de\s+trabajo\b'
+    ),
+    'referencia_oficio': re.compile(
+        r'^(?:(?:referencia|ref\.?)\s*:?\s*)?(?:de\s+)?oficio\b'
+    ),
+}
 PENDING_VALUES = {
     'asunto': '[PENDIENTE: describir el asunto según la orden]',
     'cargo_destinatario': '[PENDIENTE: confirmar cargo del destinatario]',
@@ -90,10 +98,10 @@ def suggest_fields(text, names):
         if line.startswith('--- '):
             continue
         folded = normalize(line)
-        if re.match(r'^orden de trabajo\b', folded) and re.search(r'\d', folded):
-            candidates['referencia_orden'].append(line)
-        elif re.match(r'^oficio\b', folded) and re.search(r'\d', folded):
-            candidates['referencia_oficio'].append(line)
+        for field, pattern in REFERENCE_PATTERNS.items():
+            if pattern.match(folded) and re.search(r'\d', folded):
+                candidates[field].append(line)
+                break
 
     values, conflicts = {}, []
     for name in names:

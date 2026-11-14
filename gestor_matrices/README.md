@@ -44,11 +44,12 @@ También propone un asunto a partir del campo de trabajo/actividad y reconoce
 destinatario y cargo cuando aparecen juntos en el encabezado. Si la fuente no trae
 fecha del documento, propone la fecha actual como fecha de emisión. Estas propuestas
 se identifican en pantalla y el Word queda marcado como borrador para revisión.
-Reconoce referencias completas de órdenes de trabajo y oficios. Nunca reutiliza el
-número de una orden como número de un memorándum: si no encuentra el número oficial,
-lo deja marcado para completar. Si las fuentes contienen valores contradictorios,
-el campo queda pendiente. No redacta designaciones o instrucciones que no estén
-explícitas en la fuente; otros datos que no se puedan inferir se dejan pendientes.
+Reconoce referencias completas de órdenes de trabajo y oficios, incluso si vienen
+precedidas por «Referencia:» o «Ref.», y conserva el texto tal como se leyó.
+Nunca reutiliza el número de una orden como número de un memorándum: si no encuentra
+el número oficial, lo deja marcado para completar. Si las fuentes contienen valores
+contradictorios, el campo queda pendiente. No redacta designaciones o instrucciones
+que no estén explícitas en la fuente; otros datos que no se puedan inferir se dejan pendientes.
 Cambiar fotos o texto inicia un nuevo llenado. Las correcciones manuales de campos
 se conservan en las demás interacciones. Un fallo al leer fotos nuevas invalida el
 resultado anterior; si solo falla alguna foto, el resultado se marca como borrador.
