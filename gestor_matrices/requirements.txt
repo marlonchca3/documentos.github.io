@@ -1,0 +1,8 @@
+streamlit==1.67.0
+paddleocr==3.7.0
+paddlepaddle==3.3.1
+docxtpl==0.20.2
+python-docx==1.2.0
+Pillow>=10,<13
+numpy>=1.24,<3
+Jinja2>=3.1.6,<4
