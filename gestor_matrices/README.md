@@ -105,3 +105,16 @@ PADDLE_PDX_CACHE_HOME=/tmp/gestor-matrices-models .venv/bin/python -m streamlit 
 
 El reconocimiento de una imagen sintética no garantiza precisión en fotos reales:
 revisa nombres, números, fechas y acentos antes de generar el documento.
+
+## Dependencias de Streamlit Community Cloud
+
+El archivo `packages.txt` en la raíz del repositorio instala `libgl1`, que aporta
+`libGL.so.1` para OpenCV, utilizado por PaddleOCR. Debe mantenerse en la raíz aunque
+el punto de entrada sea `gestor_matrices/app.py`. Esta biblioteca es una dependencia
+del sistema y no se instala mediante `requirements.txt`.
+
+Al actualizar `packages.txt` en GitHub, Streamlit Cloud reconstruye el entorno.
+Si continúa mostrando el error anterior, revisa los registros de instalación y usa
+**Manage app → Reboot app** tras completar la reconstrucción.
+
+Referencia: https://docs.streamlit.io/knowledge-base/dependencies/libgl
