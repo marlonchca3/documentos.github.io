@@ -29,23 +29,35 @@ No se modifica el código fuente de PaddleOCR ni los requisitos del repositorio 
 1. En Word, escribe campos como `{{ destinatario }}`, `{{ asunto }}`,
    `{{ fecha }}` y `{{ cuerpo }}`. Aplica el estilo deseado al campo completo.
 2. Sube el .docx, dale un nombre y pulsa **Guardar matriz**. Selecciónalo en la barra lateral.
-3. Opcionalmente sube fotos PNG, JPEG o WebP y pulsa **Extraer texto**.
-4. Revisa y corrige el texto editable. Cada nueva extracción reemplaza ese texto.
-5. Copia los datos correspondientes a los campos, revisa la tabla y confirma la revisión.
-6. Pulsa **Generar Word** y **Descargar Word**. Si falta un dato, se indica cuál y
-   se bloquea la generación. Cambiar valores invalida la descarga anterior.
+3. Sube fotos PNG, JPEG o WebP: el OCR se ejecuta automáticamente una vez por conjunto de fotos.
+4. Los campos identificables se rellenan y el Word se prepara automáticamente.
+5. Descarga el Word. Si faltan datos, la descarga se llama **borrador** e incluye
+   un aviso visible y marcas `[PENDIENTE: nombre_del_campo]` dentro del documento.
+6. Puedes corregir el texto o los campos: el Word se actualiza automáticamente.
+   No hay que marcar una casilla ni pulsar un botón de generación.
 
-El OCR extrae texto: **asignarlo automáticamente a los campos requiere lógica adicional**,
-como reglas específicas por tipo de documento. Esta aplicación deja esa asignación
-al usuario y nunca completa datos por su cuenta.
+El llenado usa reglas locales, sin API de pago: reconoce etiquetas como `Para:`,
+`Destinatario:`, `Asunto:`, `Fecha:`, `Cargo del destinatario:`, `Designación:` e
+`Instrucciones:`, además del nombre de cada campo con espacios en lugar de guiones
+bajos. Admite valores en la línea siguiente y párrafos para asunto e instrucciones.
+Reconoce referencias completas de órdenes de trabajo y oficios. Si las fuentes
+contienen valores contradictorios, el campo queda pendiente.
+
+No deduce destinatarios a partir de nombres sueltos ni utiliza el número de una
+orden como número de un memorándum nuevo. No redacta designaciones o instrucciones
+que no estén explícitas en la fuente. Una foto de una orden puede no contener todos
+los datos necesarios para un memorándum; en ese caso prepara un borrador, nunca
+presenta los datos faltantes como completos. Revisa el reconocimiento antes de usarlo.
+Cambiar fotos o texto inicia un nuevo llenado. Las correcciones manuales de campos
+se conservan en las demás interacciones. Un fallo al leer fotos nuevas invalida el
+resultado anterior; si solo falla alguna foto, el resultado se marca como borrador.
 
 ## Plantillas, formato y almacenamiento
 
 Se admiten campos simples de texto en el cuerpo, tablas, encabezados y pies.
 No se admiten expresiones, bucles, filtros, objetos anidados ni inserción de imágenes
-mediante campos. Todos los campos detectados son obligatorios; escribe un valor
-explícito como «No aplica» solo cuando corresponda. Las matrices sin campos generan
-una copia previa confirmación.
+mediante campos. Los campos ausentes se marcan en el borrador; escribe «No aplica» solo cuando
+corresponda. Las matrices sin campos generan una copia automáticamente.
 
 docxtpl renderiza sobre el documento original, conservando estilos, tablas y estructura
 hasta donde permite Word. Textos largos o saltos de línea pueden cambiar la paginación;
@@ -77,16 +89,16 @@ Tras desplegar esta corrección en Streamlit Cloud, usa **Reboot app** una vez s
 proceso ya mostraba `PDX has already been initialized`; recargar el navegador no
 elimina el estado de Python en el servidor. Los errores originales se registran con
 su traceback para distinguir fallos de dependencias, descarga e inicialización.
-Si falla la descarga o inicialización, se muestra el error sin impedir completar campos
-manualmente. No se requiere una API de pago ni un servicio remoto para inferencia.
+Si falla la descarga o inicialización, se muestra el error y se permite pegar
+texto o completar campos manualmente. No se requiere una API de pago ni un servicio remoto para inferencia.
 
 ```bash
 .venv/bin/python -m unittest discover -s gestor_matrices -v
 ```
 
-Las cinco pruebas verifican campos en cuerpo/tablas/encabezado/pie, negrita y escape XML,
-datos faltantes, archivos inválidos y expresiones no admitidas, guardado sin sobrescritura,
-el adaptador OCR con resultados simulados y el flujo de revisión/generación de Streamlit.
+Las pruebas verifican formato Word, escape XML, guardado sin sobrescritura,
+reconocimiento de campos, fuentes contradictorias, borradores, conservación de
+correcciones, carga automática de fotos e invalidación de documentos anteriores.
 
 Referencias de API:
 - https://www.paddleocr.ai/main/en/version3.x/pipeline_usage/OCR.html

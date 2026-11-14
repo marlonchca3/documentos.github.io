@@ -1,0 +1,72 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from io import BytesIO
+from tempfile import TemporaryDirectory
+import unittest
+from unittest.mock import patch, Mock
+from docx import Document
+from automatic import suggest_fields, prepare_word
+from test_app import fixture
+
+
+class AutomaticTests(unittest.TestCase):
+    def test_labels_accents_and_multiline(self):
+        text = 'DESTINATARIO:\nJosé Pérez\nCargo del destinatario: Jefe\nASUNTO: Revisión\nde equipos\nFecha: 14/11/2026\nInstrucciones: Revisar el equipo.\nInformar el resultado.'
+        values, conflicts = suggest_fields(text, ['destinatario', 'cargo_destinatario', 'asunto', 'fecha', 'parrafo_instrucciones'])
+        self.assertEqual(values['destinatario'], 'José Pérez')
+        self.assertEqual(values['cargo_destinatario'], 'Jefe')
+        self.assertEqual(values['asunto'], 'Revisión\nde equipos')
+        self.assertEqual(values['parrafo_instrucciones'], 'Revisar el equipo.\nInformar el resultado.')
+        self.assertFalse(conflicts)
+
+    def test_references_do_not_invent_memo_data(self):
+        text = '--- foto.jpg ---\nORDEN DE TRABAJO DE MANTENIMIENTO N° 087-2026-DIVMAAER\nFECHA DE PROGRAMACIÓN: 14/11/2026\nOFICIO N° 012-2026\n'
+        values, _ = suggest_fields(text, ['referencia_orden', 'referencia_oficio', 'numero', 'fecha', 'destinatario'])
+        self.assertIn('087-2026', values['referencia_orden'])
+        self.assertIn('012-2026', values['referencia_oficio'])
+        self.assertNotIn('numero', values)
+        self.assertNotIn('fecha', values)
+        self.assertNotIn('destinatario', values)
+
+    def test_conflicting_sources(self):
+        values, conflicts = suggest_fields('Para: Ana\n--- otra.jpg ---\nPara: Luis', ['destinatario'])
+        self.assertFalse(values)
+        self.assertEqual(conflicts, ['destinatario'])
+        values, conflicts = suggest_fields('Para: Ana\n--- otra.jpg ---\nPara: Ana', ['destinatario'])
+        self.assertEqual(values, {'destinatario': 'Ana'})
+        self.assertFalse(conflicts)
+
+    def test_draft_for_unreadable_source(self):
+        values = dict(destinatario='José', asunto='Equipo', entidad='Oficina', fecha='14/11/2026')
+        data, draft = prepare_word(fixture(), values, incomplete_source=True)
+        self.assertTrue(draft)
+        self.assertIn('No se pudieron leer todas', Document(BytesIO(data)).paragraphs[0].text)
+
+    def test_upload_runs_once_and_failure_invalidates_previous_word(self):
+        import core
+        import streamlit as st
+        from streamlit.testing.v1 import AppTest
+        from core import save_template
+        st.cache_resource.clear()
+        with TemporaryDirectory() as directory, patch.object(core, 'DATA', Path(directory)):
+            save_template('Oficio', fixture(), Path(directory))
+            with patch('ocr.create_engine', return_value=Mock()), patch('ocr.extract_text') as extract:
+                extract.return_value = 'Para: María\nAsunto: Equipo\nEntidad: Oficina\nFecha: 14/11/2026'
+                app = AppTest.from_file(str(Path(__file__).with_name('app.py')), default_timeout=30).run()
+                app.file_uploader(key='reference_photos').upload('foto.png', b'fake image').run()
+                self.assertFalse(app.exception)
+                self.assertEqual(extract.call_count, 1)
+                self.assertFalse(app.session_state['generated'][2])
+                app.run()
+                self.assertEqual(extract.call_count, 1)
+                extract.side_effect = RuntimeError('imagen dañada')
+                app.button(key='retry_ocr').click().run()
+                self.assertFalse(app.exception)
+                self.assertFalse(app.get('download_button'))
+                self.assertEqual(app.session_state['ocr_text'], '')
+        st.cache_resource.clear()
+
+
+if __name__ == '__main__':
+    unittest.main()

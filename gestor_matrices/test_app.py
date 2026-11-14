@@ -74,18 +74,25 @@ class WorkflowTests(unittest.TestCase):
                 save_template('Oficio', fixture(), core.DATA)
                 app = AppTest.from_file(str(Path(__file__).with_name('app.py')), default_timeout=30).run()
                 self.assertFalse(app.exception)
-                self.assertTrue(next(b for b in app.button if b.label == 'Generar Word').disabled)
-                for area in app.text_area:
-                    if area.label in fields(fixture()):
-                        area.set_value('Dato verificado')
-                app.run()
-                app.checkbox[0].check().run()
-                next(b for b in app.button if b.label == 'Generar Word').click().run()
+                app.text_area(key='ocr_text').set_value('Destinatario: María\nAsunto: A < B & C\nEntidad: Oficina\nFecha: 14/11/2026').run()
                 self.assertFalse(app.exception)
-                self.assertTrue(app.session_state['generated'][1].startswith(b'PK'))
+                result = app.session_state['generated']
+                self.assertFalse(result[2])
+                self.assertEqual(Document(BytesIO(result[1])).paragraphs[0].text, 'María')
+                self.assertTrue(app.get('download_button'))
+                next(a for a in app.text_area if a.label == 'asunto').set_value('Corregido').run()
+                app.run()
+                self.assertEqual(next(a for a in app.text_area if a.label == 'asunto').value, 'Corregido')
+                self.assertEqual(Document(BytesIO(app.session_state['generated'][1])).tables[0].cell(0, 0).text, 'Corregido')
                 next(a for a in app.text_area if a.label == 'asunto').set_value('').run()
-                self.assertTrue(next(b for b in app.button if b.label == 'Generar Word').disabled)
-                self.assertFalse(app.get('download_button'))
+                self.assertTrue(app.session_state['generated'][2])
+                doc = Document(BytesIO(app.session_state['generated'][1]))
+                self.assertIn('BORRADOR', doc.paragraphs[0].text)
+                self.assertEqual(doc.tables[0].cell(0, 0).text, '[PENDIENTE: asunto]')
+                app.text_area(key='ocr_text').set_value('Destinatario: Luis').run()
+                self.assertEqual(next(a for a in app.text_area if a.label == 'destinatario').value, 'Luis')
+                self.assertEqual(next(a for a in app.text_area if a.label == 'fecha').value, '')
+                self.assertFalse(app.exception)
             finally:
                 core.DATA = original
 

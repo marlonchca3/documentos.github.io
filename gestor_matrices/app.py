@@ -3,8 +3,9 @@ from importlib.metadata import version
 from pathlib import Path
 import logging
 import streamlit as st
-from core import DATA, fields, generate, save_template, template_name
+from core import DATA, fields, save_template, template_name
 from ocr import create_engine, extract_text
+from automatic import suggest_fields, prepare_word
 
 st.set_page_config(page_title='Gestor de matrices Word', page_icon='📄', layout='wide')
 st.title('Gestor de matrices Word')
@@ -40,10 +41,19 @@ with st.sidebar:
             st.text(f'{package}: {version(package)}')
 
 st.subheader('1. Extraer y revisar texto de fotos')
-st.info('El OCR extrae texto; asignarlo automáticamente a los campos requiere lógica adicional. Copia los datos revisados a los campos correspondientes. No se inventan datos.')
-photos = st.file_uploader('Fotos de referencia', type=['png', 'jpg', 'jpeg', 'webp'], accept_multiple_files=True)
-st.caption('Las fotos se procesan en memoria. La primera extracción puede descargar modelos y tardar varios minutos. Usa fotos orientadas correctamente. Una nueva extracción reemplaza el texto editable.')
-if st.button('Extraer texto', disabled=not photos):
+st.info('Selecciona una matriz y sube las fotos: extraeremos el texto, completaremos los datos identificables y prepararemos el Word. Si faltan datos, obtendrás un borrador con marcas PENDIENTE.')
+photos = st.file_uploader('Fotos de referencia', type=['png', 'jpg', 'jpeg', 'webp'], accept_multiple_files=True, key='reference_photos')
+st.caption('El procesamiento comienza al subir las fotos. Puedes corregir el texto y los campos. Cambiar las fotos o el texto inicia un nuevo llenado; las correcciones de campos se conservan mientras no cambie la fuente.')
+photo_signature = sha256(repr([(p.name, sha256(p.getvalue()).hexdigest()) for p in photos]).encode()).hexdigest() if photos else None
+retry = st.button('Volver a extraer', disabled=not photos, key='retry_ocr')
+if not photos and st.session_state.get('photo_signature'):
+    st.session_state['ocr_text'] = ''
+    st.session_state['photo_signature'] = None
+    st.session_state['ocr_incomplete'] = False
+if photos and (retry or st.session_state.get('photo_signature') != photo_signature):
+    st.session_state['photo_signature'] = photo_signature
+    st.session_state['ocr_text'] = ''
+    st.session_state['ocr_incomplete'] = False
     texts = []
     with st.spinner('Extrayendo texto en español…'):
         try:
@@ -56,12 +66,15 @@ if st.button('Extraer texto', disabled=not photos):
                         text = extract_text(engine, photo.getvalue())
                     if not text.strip():
                         st.warning(f'No se encontró texto en {photo.name}.')
+                        st.session_state['ocr_incomplete'] = True
                     texts.append(f'--- {photo.name} ---\n{text}')
                 except Exception as exc:
                     st.error(f'No se pudo procesar {photo.name}: {exc}')
+                    st.session_state['ocr_incomplete'] = True
             if texts:
                 st.session_state['ocr_text'] = '\n\n'.join(texts)
         except Exception as exc:
+            st.session_state['ocr_incomplete'] = True
             logging.getLogger(__name__).exception('No se pudo iniciar PaddleOCR')
             st.error(f'No se pudo iniciar PaddleOCR: {exc}')
             if 'PDX has already been initialized' in str(exc):
@@ -73,7 +86,7 @@ if st.button('Extraer texto', disabled=not photos):
                         'Comprueba las dependencias y la conexión si el registro indica un fallo de descarga.')
 st.text_area('Texto extraído (editable)', key='ocr_text', height=250)
 
-st.subheader('2. Completar y revisar la matriz')
+st.subheader('2. Word preparado automáticamente')
 if not selected:
     st.info('Sube y nombra una matriz .docx para continuar. Ejemplo de campo: {{ destinatario }}.')
     st.stop()
@@ -86,19 +99,39 @@ except Exception as exc:
 identity = sha256(content).hexdigest() + Path(selected).stem
 if not names:
     st.warning('Esta matriz no contiene campos: se generará una copia de su contenido.')
-values = {name: st.text_area(name, key=f'field:{identity}:{name}', height=85) for name in names}
+source_text = st.session_state.get('ocr_text', '')
+source_id = sha256(source_text.encode()).hexdigest()
+suggestions, conflicts = suggest_fields(source_text, names)
+if conflicts:
+    st.warning('Hay valores distintos para estos campos; elige el correcto: ' + ', '.join(conflicts))
+values = {}
+with st.expander('Revisar o corregir campos', expanded=True):
+    for name in names:
+        key = f'field:{identity}:{source_id}:{name}'
+        if key not in st.session_state:
+            st.session_state[key] = suggestions.get(name, '')
+        values[name] = st.text_area(name, key=key, height=85)
 missing = [name for name, value in values.items() if not value.strip()]
 if missing:
-    st.warning('Faltan datos. Completa: ' + ', '.join(missing))
+    st.warning('El borrador marcará como PENDIENTE: ' + ', '.join(missing))
 if names:
-    st.table([{'Campo': name, 'Valor': value or 'Pendiente'} for name, value in values.items()])
-revision = sha256(repr((identity, values)).encode()).hexdigest()
-reviewed = st.checkbox('He revisado los campos y confirmo que los datos son correctos', key=f'review:{revision}')
-if st.button('Generar Word', disabled=bool(missing) or not reviewed):
-    try:
-        st.session_state['generated'] = (revision, generate(content, values))
-    except Exception as exc:
-        st.error(f'No se pudo generar el Word: {exc}')
-result = st.session_state.get('generated')
-if result and result[0] == revision and reviewed:
-    st.download_button('Descargar Word', data=result[1], file_name=f'{template_name(Path(selected))}_completado.docx', mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    st.table([{'Campo': name, 'Valor': value or 'PENDIENTE'} for name, value in values.items()])
+incomplete = st.session_state.get('ocr_incomplete', False)
+revision = sha256(repr((identity, values, incomplete)).encode()).hexdigest()
+if source_text.strip() or any(value.strip() for value in values.values()) or not names:
+    result = st.session_state.get('generated')
+    if not result or result[0] != revision:
+        try:
+            document, draft = prepare_word(content, values, incomplete_source=incomplete)
+            st.session_state['generated'] = (revision, document, draft)
+        except Exception as exc:
+            st.error(f'No se pudo generar el Word: {exc}')
+    result = st.session_state.get('generated')
+    if result and result[0] == revision:
+        draft = result[2]
+        st.success('Borrador preparado. Los datos ausentes están marcados dentro del Word.' if draft else 'Word preparado. Revisa los datos reconocidos antes de utilizarlo.')
+        st.download_button('Descargar borrador Word' if draft else 'Descargar Word', data=result[1],
+                           file_name=f"{template_name(Path(selected))}_{'borrador' if draft else 'completado'}.docx",
+                           mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+else:
+    st.info('Sube las fotos o pega el texto de referencia para preparar el Word automáticamente.')
