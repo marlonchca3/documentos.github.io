@@ -29,6 +29,13 @@ class AutomaticTests(unittest.TestCase):
         self.assertNotIn('fecha', values)
         self.assertNotIn('destinatario', values)
 
+    def test_table_headings_are_not_document_numbers(self):
+        for text in ('NUMERO\nHORA\n10:30', 'Numero: HORA', 'Número\nMODELO\nMI-17'):
+            values, _ = suggest_fields(text, ['numero'])
+            self.assertNotIn('numero', values)
+        values, _ = suggest_fields('Número: 058-2026', ['numero'])
+        self.assertEqual(values['numero'], '058-2026')
+
     def test_conflicting_sources(self):
         values, conflicts = suggest_fields('Para: Ana\n--- otra.jpg ---\nPara: Luis', ['destinatario'])
         self.assertFalse(values)

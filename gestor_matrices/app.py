@@ -5,7 +5,7 @@ import logging
 import streamlit as st
 from core import DATA, fields, save_template, template_name
 from ocr import create_engine, extract_text
-from automatic import suggest_fields, prepare_word
+from automatic import suggest_fields, prepare_word, normalize, TABLE_HEADERS
 
 st.set_page_config(page_title='Gestor de matrices Word', page_icon='📄', layout='wide')
 st.title('Gestor de matrices Word')
@@ -110,6 +110,8 @@ with st.expander('Revisar o corregir campos', expanded=True):
         key = f'field:{identity}:{source_id}:{name}'
         if key not in st.session_state:
             st.session_state[key] = suggestions.get(name, '')
+        if name == 'numero' and normalize(st.session_state[key]) in TABLE_HEADERS:
+            st.session_state[key] = ''
         values[name] = st.text_area(name, key=key, height=85)
 missing = [name for name, value in values.items() if not value.strip()]
 if missing:

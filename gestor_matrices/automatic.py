@@ -20,6 +20,10 @@ ALIASES = {
     'entidad': ('entidad', 'institucion'),
 }
 MULTILINE = {'asunto', 'parrafo_designacion', 'parrafo_instrucciones', 'cuerpo'}
+# Encabezados de tablas OCR: no deben convertirse en el valor del campo anterior.
+TABLE_HEADERS = {'hora', 'aeronave', 'modelo', 'n° de serie', 'nº de serie',
+                 'fecha de programacion', 'fecha de program', 'trabajo a realizar',
+                 'personal', 'firma', 'observaciones'}
 
 
 def normalize(text):
@@ -38,7 +42,10 @@ def suggest_fields(text, names):
 
     def finish():
         if active and chunks:
-            candidates[active].append('\n'.join(chunks).strip())
+            value = '\n'.join(chunks).strip()
+            if active == 'numero' and not re.search(r'\d', value):
+                return
+            candidates[active].append(value)
 
     for raw in text.splitlines():
         line = raw.strip()
@@ -57,7 +64,7 @@ def suggest_fields(text, names):
                 if active not in MULTILINE:
                     finish()
                     active, chunks = None, []
-        elif match:
+        elif match or key in TABLE_HEADERS:
             finish()
             active, chunks = None, []
         elif active:
