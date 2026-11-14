@@ -5,7 +5,10 @@ import logging
 import streamlit as st
 from core import DATA, fields, save_template, template_name
 from ocr import create_engine, extract_text
-from automatic import suggest_fields, prepare_word, normalize, TABLE_HEADERS
+from automatic import (
+    suggest_fields, infer_missing_fields, prepare_word, normalize,
+    is_pending_value, TABLE_HEADERS,
+)
 
 st.set_page_config(page_title='Gestor de matrices Word', page_icon='📄', layout='wide')
 st.title('Gestor de matrices Word')
@@ -102,6 +105,10 @@ if not names:
 source_text = st.session_state.get('ocr_text', '')
 source_id = sha256(source_text.encode()).hexdigest()
 suggestions, conflicts = suggest_fields(source_text, names)
+inference_source = {**suggestions, **{name: '' for name in conflicts}}
+inferred_values, inferred_fields, unresolved_fields = infer_missing_fields(
+    source_text, names, inference_source)
+suggestions.update(inferred_values)
 if conflicts:
     st.warning('Hay valores distintos para estos campos; elige el correcto: ' + ', '.join(conflicts))
 values = {}
@@ -113,18 +120,24 @@ with st.expander('Revisar o corregir campos', expanded=True):
         if name == 'numero' and normalize(st.session_state[key]) in TABLE_HEADERS:
             st.session_state[key] = ''
         values[name] = st.text_area(name, key=key, height=85)
-missing = [name for name, value in values.items() if not value.strip()]
+        if name in inferred_fields:
+            st.caption('Propuesta automática según el contexto; revisa antes de usar.')
+        elif name in unresolved_fields:
+            st.caption('No se puede deducir de la foto; completa este dato manualmente.')
+missing = [name for name, value in values.items() if not value.strip() or is_pending_value(value)]
 if missing:
     st.warning('El borrador marcará como PENDIENTE: ' + ', '.join(missing))
 if names:
-    st.table([{'Campo': name, 'Valor': value or 'PENDIENTE'} for name, value in values.items()])
+    st.table([{'Campo': name, 'Valor': 'PENDIENTE' if not value.strip() or is_pending_value(value) else value}
+              for name, value in values.items()])
 incomplete = st.session_state.get('ocr_incomplete', False)
-revision = sha256(repr((identity, values, incomplete)).encode()).hexdigest()
+revision = sha256(repr((identity, values, incomplete, sorted(inferred_fields))).encode()).hexdigest()
 if source_text.strip() or any(value.strip() for value in values.values()) or not names:
     result = st.session_state.get('generated')
     if not result or result[0] != revision:
         try:
-            document, draft = prepare_word(content, values, incomplete_source=incomplete)
+            document, draft = prepare_word(
+                content, values, incomplete_source=incomplete, inferred_fields=inferred_fields)
             st.session_state['generated'] = (revision, document, draft)
         except Exception as exc:
             st.error(f'No se pudo generar el Word: {exc}')

@@ -40,14 +40,15 @@ El llenado usa reglas locales, sin API de pago: reconoce etiquetas como `Para:`,
 `Destinatario:`, `Asunto:`, `Fecha:`, `Cargo del destinatario:`, `Designación:` e
 `Instrucciones:`, además del nombre de cada campo con espacios en lugar de guiones
 bajos. Admite valores en la línea siguiente y párrafos para asunto e instrucciones.
-Reconoce referencias completas de órdenes de trabajo y oficios. Si las fuentes
-contienen valores contradictorios, el campo queda pendiente.
-
-No deduce destinatarios a partir de nombres sueltos ni utiliza el número de una
-orden como número de un memorándum nuevo. No redacta designaciones o instrucciones
-que no estén explícitas en la fuente. Una foto de una orden puede no contener todos
-los datos necesarios para un memorándum; en ese caso prepara un borrador, nunca
-presenta los datos faltantes como completos. Revisa el reconocimiento antes de usarlo.
+También propone un asunto a partir del campo de trabajo/actividad y reconoce
+destinatario y cargo cuando aparecen juntos en el encabezado. Si la fuente no trae
+fecha del documento, propone la fecha actual como fecha de emisión. Estas propuestas
+se identifican en pantalla y el Word queda marcado como borrador para revisión.
+Reconoce referencias completas de órdenes de trabajo y oficios. Nunca reutiliza el
+número de una orden como número de un memorándum: si no encuentra el número oficial,
+lo deja marcado para completar. Si las fuentes contienen valores contradictorios,
+el campo queda pendiente. No redacta designaciones o instrucciones que no estén
+explícitas en la fuente; otros datos que no se puedan inferir se dejan pendientes.
 Cambiar fotos o texto inicia un nuevo llenado. Las correcciones manuales de campos
 se conservan en las demás interacciones. Un fallo al leer fotos nuevas invalida el
 resultado anterior; si solo falla alguna foto, el resultado se marca como borrador.

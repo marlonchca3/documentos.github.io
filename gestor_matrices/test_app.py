@@ -91,7 +91,8 @@ class WorkflowTests(unittest.TestCase):
                 self.assertEqual(doc.tables[0].cell(0, 0).text, '[PENDIENTE: asunto]')
                 app.text_area(key='ocr_text').set_value('Destinatario: Luis').run()
                 self.assertEqual(next(a for a in app.text_area if a.label == 'destinatario').value, 'Luis')
-                self.assertEqual(next(a for a in app.text_area if a.label == 'fecha').value, '')
+                self.assertRegex(next(a for a in app.text_area if a.label == 'fecha').value,
+                                 r'^\d{2}/\d{2}/\d{4}$')
                 self.assertFalse(app.exception)
             finally:
                 core.DATA = original
