@@ -10,7 +10,10 @@ from core import generate
 
 ALIASES = {
     'destinatario': ('destinatario', 'dirigido a', 'para', 'senor'),
-    'cargo_destinatario': ('cargo destinatario', 'cargo del destinatario', 'cargo', 'grado', 'puesto'),
+    'cargo_destinatario': (
+        'cargo destinatario', 'cargo del destinatario', 'cargo', 'grado', 'puesto',
+        'nombre del inspector tecnico',
+    ),
     'asunto': ('asunto', 'objeto'),
     'fecha': ('fecha', 'fecha del documento'),
     'numero': ('numero', 'numero del documento'),
@@ -24,7 +27,8 @@ MULTILINE = {'asunto', 'parrafo_designacion', 'parrafo_instrucciones', 'cuerpo'}
 # Encabezados de tablas OCR: no deben convertirse en el valor del campo anterior.
 TABLE_HEADERS = {'hora', 'aeronave', 'modelo', 'n° de serie', 'nº de serie',
                  'fecha de programacion', 'fecha de program', 'trabajo a realizar',
-                 'personal', 'firma', 'observaciones'}
+                 'personal', 'firma', 'observaciones', 'p.i.d.', 'pid'}
+INSPECTOR_LABEL = 'nombre del inspector tecnico'
 TASK_LABELS = {'trabajo a realizar', 'actividad a realizar', 'descripcion del trabajo',
                'descripcion de trabajo', 'tarea a realizar'}
 REFERENCE_PATTERNS = {
@@ -46,6 +50,48 @@ PENDING_VALUES = {
 def normalize(text):
     text = ''.join(c for c in unicodedata.normalize('NFD', text) if not unicodedata.combining(c))
     return ' '.join(text.lower().replace('_', ' ').split())
+
+
+def _inspector_names(text):
+    names = []
+    segment = []
+
+    def collect_segment(lines):
+        normalized = [normalize(line) for line in lines]
+        for index, line in enumerate(lines):
+            inline = re.match(
+                r'^\s*nombre del inspector t[eé]cnico\s*[:\-]\s*(.+?)\s*$',
+                line, re.IGNORECASE)
+            if inline:
+                names.append(inline[1].strip())
+                continue
+            if normalized[index] != INSPECTOR_LABEL:
+                continue
+
+            preceding = normalized[max(0, index - 4):index]
+            grade_positions = [i for i, value in enumerate(preceding) if value == 'grado']
+            has_grade_column = bool(grade_positions) and all(
+                value in TABLE_HEADERS or value == INSPECTOR_LABEL
+                for value in preceding[grade_positions[-1] + 1:])
+            skip_grade_value = has_grade_column
+            for candidate in lines[index + 1:index + 8]:
+                candidate_label = normalize(candidate)
+                if candidate_label in TABLE_HEADERS:
+                    continue
+                if skip_grade_value:
+                    skip_grade_value = False
+                    continue
+                names.append(candidate.strip())
+                break
+
+    for line in text.splitlines():
+        if line.startswith('--- '):
+            collect_segment(segment)
+            segment = []
+        elif line.strip():
+            segment.append(line.strip())
+    collect_segment(segment)
+    return names
 
 
 def suggest_fields(text, names):
@@ -102,6 +148,10 @@ def suggest_fields(text, names):
             if pattern.match(folded) and re.search(r'\d', folded):
                 candidates[field].append(line)
                 break
+
+    inspector_names = _inspector_names(text)
+    if inspector_names:
+        candidates['cargo_destinatario'] = inspector_names
 
     values, conflicts = {}, []
     for name in names:

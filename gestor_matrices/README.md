@@ -41,7 +41,9 @@ El llenado usa reglas locales, sin API de pago: reconoce etiquetas como `Para:`,
 `Instrucciones:`, además del nombre de cada campo con espacios en lugar de guiones
 bajos. Admite valores en la línea siguiente y párrafos para asunto e instrucciones.
 También propone un asunto a partir del campo de trabajo/actividad y reconoce
-destinatario y cargo cuando aparecen juntos en el encabezado. Si la fuente no trae
+destinatario y cargo cuando aparecen juntos en el encabezado. Si la foto incluye
+el nombre del inspector técnico, ese nombre se usa en `cargo_destinatario` en
+lugar del grado o cargo detectado. Si la fuente no trae
 fecha del documento, propone la fecha actual como fecha de emisión. Estas propuestas
 se identifican en pantalla y el Word queda marcado como borrador para revisión.
 Reconoce referencias completas de órdenes de trabajo y oficios, incluso si vienen

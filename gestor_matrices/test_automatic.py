@@ -21,6 +21,16 @@ class AutomaticTests(unittest.TestCase):
         self.assertEqual(values['parrafo_instrucciones'], 'Revisar el equipo.\nInformar el resultado.')
         self.assertFalse(conflicts)
 
+    def test_inspector_name_fills_recipient_role_from_table(self):
+        text = (
+            'Cargo del destinatario: Jefe de mantenimiento\n'
+            'GRADO\nNOMBRE DEL INSPECTOR TÉCNICO\nP.I.D.\n'
+            'SS. PNP\nCLAUDIO TRUJILLO Edward\n30948849'
+        )
+        values, conflicts = suggest_fields(text, ['cargo_destinatario'])
+        self.assertEqual(values['cargo_destinatario'], 'CLAUDIO TRUJILLO Edward')
+        self.assertFalse(conflicts)
+
     def test_references_do_not_invent_memo_data(self):
         text = '--- foto.jpg ---\nORDEN DE TRABAJO DE MANTENIMIENTO N° 087-2026-DIVMAAER\nFECHA DE PROGRAMACIÓN: 14/11/2026\nOFICIO N° 012-2026\n'
         values, _ = suggest_fields(text, ['referencia_orden', 'referencia_oficio', 'numero', 'fecha', 'destinatario'])
@@ -131,6 +141,29 @@ class AutomaticTests(unittest.TestCase):
             self.assertIn('[PENDIENTE: asignar número oficial]', generated_text)
             self.assertNotIn('087-2026', generated_text)
         st.cache_resource.clear()
+
+    def test_streamlit_fills_cargo_with_inspector_name(self):
+        import core
+        from streamlit.testing.v1 import AppTest
+        from core import save_template
+
+        template = Document()
+        template.add_paragraph('{{ cargo_destinatario }}')
+        output = BytesIO()
+        template.save(output)
+        text = (
+            'GRADO\nNOMBRE DEL INSPECTOR TÉCNICO\nP.I.D.\n'
+            'SS. PNP\nCLAUDIO TRUJILLO Edward\n30948849'
+        )
+        with TemporaryDirectory() as directory, patch.object(core, 'DATA', Path(directory)):
+            save_template('Orden', output.getvalue(), Path(directory))
+            app = AppTest.from_file(str(Path(__file__).with_name('app.py')), default_timeout=30).run()
+            app.text_area(key='ocr_text').set_value(text).run()
+            self.assertFalse(app.exception)
+            self.assertEqual(
+                next(area for area in app.text_area if area.label == 'cargo_destinatario').value,
+                'CLAUDIO TRUJILLO Edward',
+            )
 
     def test_upload_runs_once_and_failure_invalidates_previous_word(self):
         import core
